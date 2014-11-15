@@ -16,6 +16,7 @@
         height: 40px;
         background-color: silver;
         width: 100%;
+        cursor: pointer;
       }
       
       .video .timeline .signals {
@@ -30,27 +31,84 @@
         height: 20px;
       }
       
-      
+      .progress {
+        height: 30px;
+        background-color: blue;
+        width: 2px;
+      }
     </style>
     <script type="text/javascript" charset="utf-8" src="jquery.js"></script>
     <script type="text/javascript" charset="utf-8">
       $(function() {
-        $(".video .signals .signal").each(function(index, element) {
-          var signal = $(element);
-          signal.css({
-            left: signal.data("timecode") / ($(".video").data("duration") / 100) + "%"
+        var mouseDown     = false;
+        var scrollTimer   = undefined;
+        var lastPositionX = undefined;
+        
+        function updateSignals() {
+          var videoDuration = $(".video video").get(0).duration;
+          $(".video .signals .signal").each(function(index, element) {
+            var signal = $(element);
+            signal.css({
+              left: signal.data("timecode") / (videoDuration / 100) + "%"
+            });
           });
-        });
+        }
         
         $(".video video").on("timeupdate", function(){
-          console.log($(".video video").get(0).currentTime.toFixed(2))
+          if(!mouseDown) {
+            var videoDuration = $(".video video").get(0).duration;
+            var progressTime = $(".video video").get(0).currentTime.toFixed(2)
+            $(".video .progress").css({ width: progressTime / (videoDuration / 100) + "%" })
+          }
+        });
+        
+        $(".video video").on("loadedmetadata", function(){
+          updateSignals();
+        });
+        
+        function gotoPixelPositionX(positionX) {
+          clearTimeout(scrollTimer);
+          lastPositionX = positionX;
+          
+          var timelineWidth     = $('.timeline').width();
+          $(".video .progress").css({ width: lastPositionX / (timelineWidth / 100) + "%" })
+          
+          scrollTimer = setTimeout(function() {
+            var positionX         = Math.min(lastPositionX, $('.timeline').width());
+            var positionX         = Math.max(positionX, 0);
+            var timelineWidth     = $('.timeline').width();
+            var positionInPercent = positionX / (timelineWidth / 100);
+            var videoDuration     = $(".video video").get(0).duration;
+            var positionInSeconds = videoDuration / 100 * positionInPercent;
+            $(".video video").get(0).playbackRate = 1;
+            // $(".video video").get(0).playbackRate = 0.15;
+            $(".video video").get(0).currentTime = positionInSeconds;
+            
+          }, 10);
+        }
+        
+        $(document).on("mousemove", function(e) {
+          if (mouseDown) {
+            var positionX         = e.pageX - $('.timeline').offset().left;
+            gotoPixelPositionX(positionX);
+          }
+        });
+        
+        $('.timeline').on("mousedown", function(e) {
+          mouseDown = true;
+          var positionX         = e.pageX - $('.timeline').offset().left;
+          gotoPixelPositionX(positionX);
+        });
+        
+        $(document).on("mouseup", function(e) {
+          mouseDown = false;
         });
       });
     </script>
   </head>
   <body>
     
-    <div class="video" data-duration="203">
+    <div class="video">
       <video controls="controls" autoplay="autoplay" autobuffer="autobuffer">
         <source src="light.mp4" />
       </video>
@@ -63,7 +121,7 @@
         <div class="signals">
           <div class="signal signal-comment" data-timecode="10"></div>
           <div class="signal signal-rating" data-timecode="20"></div>
-          <div class="signal signal-emotion" data-timecode="30"></div>
+          <div class="signal signal-emotion" data-timecode="327"></div>
         </div>
       </div>
     </div>
