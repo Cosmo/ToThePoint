@@ -39,69 +39,147 @@
     </style>
     <script type="text/javascript" charset="utf-8" src="jquery.js"></script>
     <script type="text/javascript" charset="utf-8">
-      $(function() {
-        var mouseDown     = false;
-        var scrollTimer   = undefined;
-        var lastPositionX = undefined;
-        
-        function updateSignals() {
-          var videoDuration = $(".video video").get(0).duration;
-          $(".video .signals .signal").each(function(index, element) {
-            var signal = $(element);
-            signal.css({
-              left: signal.data("timecode") / (videoDuration / 100) + "%"
-            });
-          });
-        }
-        
-        $(".video video").on("timeupdate", function(){
-          if(!mouseDown) {
-            var videoDuration = $(".video video").get(0).duration;
-            var progressTime = $(".video video").get(0).currentTime.toFixed(2)
-            $(".video .progress").css({ width: progressTime / (videoDuration / 100) + "%" })
-          }
-        });
-        
-        $(".video video").on("loadedmetadata", function(){
-          updateSignals();
-        });
-        
-        function gotoPixelPositionX(positionX) {
-          clearTimeout(scrollTimer);
-          lastPositionX = positionX;
+      (function ($) {
+        $.fn.tldw = function(options){
           
-          var timelineWidth     = $('.timeline').width();
-          $(".video .progress").css({ width: lastPositionX / (timelineWidth / 100) + "%" })
+          var options = $.extend({
+            mouseDown:      false,
+            scrollTimer:    undefined,
+            lastPositionX:  undefined,
+            signals:        [],
+            selectedObject: $(this),
+            video:          $(this).find("video"),
+            hotspots:       []
+          }, options);
           
-          scrollTimer = setTimeout(function() {
-            var positionX         = Math.min(lastPositionX, $('.timeline').width());
-            var positionX         = Math.max(positionX, 0);
-            var timelineWidth     = $('.timeline').width();
-            var positionInPercent = positionX / (timelineWidth / 100);
-            var videoDuration     = $(".video video").get(0).duration;
-            var positionInSeconds = videoDuration / 100 * positionInPercent;
-            $(".video video").get(0).playbackRate = 1;
-            // $(".video video").get(0).playbackRate = 0.15;
-            $(".video video").get(0).currentTime = positionInSeconds;
+          gotoPixelPositionX = function() {
+            clearTimeout(options.scrollTimer);
             
-          }, 10);
-        }
-        
-        $(document).on("mousemove", function(e) {
-          if (mouseDown) {
-            var positionX         = e.pageX - $('.timeline').offset().left;
-            gotoPixelPositionX(positionX);
+            var timelineWidth     = options.selectedObject.find('.timeline').width();
+            options.selectedObject.find('.progress').css({ width: options.lastPositionX / (timelineWidth / 100) + "%" });
+            
+            options.scrollTimer = setTimeout(function() {
+              var timelineWidth     = options.selectedObject.find('.timeline').width();
+              options.lastPositionX         = Math.min(options.lastPositionX, timelineWidth);
+              options.lastPositionX         = Math.max(options.lastPositionX, 0);
+              var positionInPercent = options.lastPositionX / (timelineWidth / 100);
+              var videoDuration     = options.video.get(0).duration;
+              var positionInSeconds = videoDuration / 100 * positionInPercent;
+              options.video.get(0).playbackRate = 1;
+              // $(".video video").get(0).playbackRate = 0.15;
+              options.video.get(0).currentTime = positionInSeconds;
+            }, 10);
           }
-        });
+          
+          updateSignals = function(){
+            var videoDuration = options.video.get(0).duration;
+            options.selectedObject.find(".video .signals .signal").each(function(index, element) {
+              var signal = $(element);
+              signal.css({
+                left: signal.data("timecode") / (videoDuration / 100) + "%"
+              });
+            });
+          };
+          
+          buildHotspots = function(signals) {
+            var s = 0;
+            var l = 0;
+            var e = 0;
+            var maxDistance = 30;
+            var hotspots = [];
+            for (i = 0; i < signals.length; i++) {
+              if (i == 0) {
+                s = signals[i];
+                l = signals[i];
+              }
+              else if (i + 1 == signals.length) {
+                e = signals[i];
+                hotspots.push({ start: s, end: e });
+              }
+              else if ((signals[i] - l) >= maxDistance) {
+                e = l;
+                hotspots.push({ start: s, end: e });
+                s = signals[i];
+                l = signals[i];
+              }
+              else {
+                l = signals[i];
+              }
+            }
+            return hotspots;
+          }
+          
+          getPlaybackRate = function(position) {
+            for (i = 0; i < options.hotspots.length; i++) {
+              var start = options.hotspots[i].start;
+              var end = options.hotspots[i].start;
+              if (start < position && position < end) {
+                return 1.0;
+              }
+              var prepadding = start - 3;
+              if (position > prepadding) {
+                return ((3.0 * 100) / (position - start)) * 5.0;
+              }
+              var postpadding = end + 3;
+              if (position > start && position < prepadding) {
+                return ((3.0 * 100) / (end - position)) * 5.0;
+              }
+            }
+            return 5.0;
+          }
+          
+          options.video.on("loadedmetadata", function(){
+            updateSignals();
+          });
+          
+          options.video.on("timeupdate", function(){
+            if(!options.mouseDown) {
+              var videoDuration = options.video.get(0).duration;
+              var progressTime  = options.video.get(0).currentTime.toFixed(2);
+              options.selectedObject.find(".progress").css({ width: progressTime / (videoDuration / 100) + "%" });
+            }
+            var newRate = getPlaybackRate(options.video.get(0).currentTime.toFixed());
+            console.log(options.video.get(0).currentTime + " " + newRate);
+            options.video.get(0).playbackRate = newRate;
+          });
+          
+          $(document).on("mousemove", function(e) {
+            if (options.mouseDown) {
+              options.lastPositionX = e.pageX - options.selectedObject.find(".timeline").offset().left;
+              gotoPixelPositionX();
+            }
+          });
+          
+          $(document).on("mouseup", function(e) {
+            options.mouseDown = false;
+          });
+          
+          options.selectedObject.find('.timeline').on("mousedown", function(e) {
+            options.mouseDown     = true;
+            options.lastPositionX = e.pageX - options.selectedObject.find('.timeline').offset().left;
+            gotoPixelPositionX();
+          });
+          
+          // $("<div class='signals'></div>").append(options.selectedObject.find("timeline"));
+          // options.signals.each(function(index, element) {
+          //   $("<div class='signals'></div>").append(options.selectedObject.find("signals"));
+          // })
+          
+          options.hotspots = buildHotspots(options.signals);
+          
+          return this;
+        };
         
-        $('.timeline').on("mousedown", function(e) {
-          mouseDown = true;
-          var positionX         = e.pageX - $('.timeline').offset().left;
-          gotoPixelPositionX(positionX);
-        });
-        
-        $(document).on("mouseup", function(e) {
-          mouseDown = false;
+      }(jQuery));
+      
+      $(function(){
+        $(".video").tldw({
+          signals: [
+          60, 75, 81, 86,
+          240, 256, 270,
+          360, 361, 377, 390, 398, 411,
+          480, 509
+          ]
         });
       });
     </script>
