@@ -1,107 +1,19 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>To The Point</title>
-    <style type="text/css" media="screen">
-      .video {
-        width: 500px;
-      }
-      
-      .video video {
-        width: 100%;
-        display: block;
-      }
-      
-      .video .timeline {
-        height: 40px;
-        background-color: silver;
-        width: 100%;
-        cursor: pointer;
-      }
-      
-      .video .timeline .signals {
-        position: relative;
-      }
-      
-      .video .timeline .signals .signal {
-        position: absolute;
-        top: 0;
-        width: 3px;
-        background-color: green;
-        height: 20px;
-      }
-      
-      .progress {
-        height: 30px;
-        background-color: blue;
-        width: 2px;
-      }
-    </style>
+    <title>TL;DW</title>
+    <link rel="stylesheet" href="tldw.css" type="text/css" media="screen" charset="utf-8" />
     <script type="text/javascript" charset="utf-8" src="jquery.js"></script>
+    <script type="text/javascript" charset="utf-8" src="tldw.js"></script>
     <script type="text/javascript" charset="utf-8">
-      $(function() {
-        var mouseDown     = false;
-        var scrollTimer   = undefined;
-        var lastPositionX = undefined;
-        
-        function updateSignals() {
-          var videoDuration = $(".video video").get(0).duration;
-          $(".video .signals .signal").each(function(index, element) {
-            var signal = $(element);
-            signal.css({
-              left: signal.data("timecode") / (videoDuration / 100) + "%"
-            });
-          });
-        }
-        
-        $(".video video").on("timeupdate", function(){
-          if(!mouseDown) {
-            var videoDuration = $(".video video").get(0).duration;
-            var progressTime = $(".video video").get(0).currentTime.toFixed(2)
-            $(".video .progress").css({ width: progressTime / (videoDuration / 100) + "%" })
-          }
-        });
-        
-        $(".video video").on("loadedmetadata", function(){
-          updateSignals();
-        });
-        
-        function gotoPixelPositionX(positionX) {
-          clearTimeout(scrollTimer);
-          lastPositionX = positionX;
-          
-          var timelineWidth     = $('.timeline').width();
-          $(".video .progress").css({ width: lastPositionX / (timelineWidth / 100) + "%" })
-          
-          scrollTimer = setTimeout(function() {
-            var positionX         = Math.min(lastPositionX, $('.timeline').width());
-            var positionX         = Math.max(positionX, 0);
-            var timelineWidth     = $('.timeline').width();
-            var positionInPercent = positionX / (timelineWidth / 100);
-            var videoDuration     = $(".video video").get(0).duration;
-            var positionInSeconds = videoDuration / 100 * positionInPercent;
-            $(".video video").get(0).playbackRate = 1;
-            // $(".video video").get(0).playbackRate = 0.15;
-            $(".video video").get(0).currentTime = positionInSeconds;
-            
-          }, 10);
-        }
-        
-        $(document).on("mousemove", function(e) {
-          if (mouseDown) {
-            var positionX         = e.pageX - $('.timeline').offset().left;
-            gotoPixelPositionX(positionX);
-          }
-        });
-        
-        $('.timeline').on("mousedown", function(e) {
-          mouseDown = true;
-          var positionX         = e.pageX - $('.timeline').offset().left;
-          gotoPixelPositionX(positionX);
-        });
-        
-        $(document).on("mouseup", function(e) {
-          mouseDown = false;
+      $(function(){
+        $(".video").tldw({
+          signals: [
+            60, 75, 81, 86,
+            240, 256, 270,
+            360, 361, 377, 390, 398, 411,
+            480, 509
+          ]
         });
       });
     </script>
@@ -109,21 +21,9 @@
   <body>
     
     <div class="video">
-      <video controls="controls" autoplay="autoplay" autobuffer="autobuffer">
+      <video controls="controls" autobuffer="autobuffer">
         <source src="light.mp4" />
       </video>
-
-      <div class="timeline">
-        <div class="progress-bar">
-          <div class="progress">
-          </div>
-        </div>
-        <div class="signals">
-          <div class="signal signal-comment" data-timecode="10"></div>
-          <div class="signal signal-rating" data-timecode="20"></div>
-          <div class="signal signal-emotion" data-timecode="327"></div>
-        </div>
-      </div>
     </div>
     
   </body>
