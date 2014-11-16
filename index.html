@@ -73,10 +73,19 @@
           
           updateSignals = function(){
             var videoDuration = options.video.get(0).duration;
-            options.selectedObject.find(".video .signals .signal").each(function(index, element) {
+            
+            options.hotspots = buildHotspots(options.signals);
+          
+            $("<div class='signals'></div>").appendTo(options.selectedObject.find(".timeline"));
+            $(options.hotspots).each(function(index, element) {
+              $("<div class='signal' data-timestart='"+element.start+"' data-timeend='"+element.end+"'></div>").appendTo(options.selectedObject.find(".signals"));
+            });
+            
+            options.selectedObject.find(".signals .signal").each(function(index, element) {
               var signal = $(element);
               signal.css({
-                left: signal.data("timecode") / (videoDuration / 100) + "%"
+                left: signal.data("timestart") / (videoDuration / 100) + "%",
+                width: (signal.data("timeend").toFixed() - signal.data("timestart").toFixed()) / (videoDuration / 100) + "%"
               });
             });
           };
@@ -118,11 +127,11 @@
               }
               var prepadding = start - 3;
               if (position > prepadding) {
-                return ((3.0 * 100) / (position - start)) * 5.0;
+                return ((position - start) / 3.0) * 5.0;
               }
               var postpadding = end + 3;
               if (position > start && position < prepadding) {
-                return ((3.0 * 100) / (end - position)) * 5.0;
+                return ((position - end) / 3.0) * 5.0;
               }
             }
             return 5.0;
@@ -130,6 +139,7 @@
           
           options.video.on("loadedmetadata", function(){
             updateSignals();
+            options.video.get(0).play();
           });
           
           options.video.on("timeupdate", function(){
@@ -160,13 +170,6 @@
             gotoPixelPositionX();
           });
           
-          // $("<div class='signals'></div>").append(options.selectedObject.find("timeline"));
-          // options.signals.each(function(index, element) {
-          //   $("<div class='signals'></div>").append(options.selectedObject.find("signals"));
-          // })
-          
-          options.hotspots = buildHotspots(options.signals);
-          
           return this;
         };
         
@@ -175,10 +178,10 @@
       $(function(){
         $(".video").tldw({
           signals: [
-          60, 75, 81, 86,
-          240, 256, 270,
-          360, 361, 377, 390, 398, 411,
-          480, 509
+            60, 75, 81, 86,
+            240, 256, 270,
+            360, 361, 377, 390, 398, 411,
+            480, 509
           ]
         });
       });
@@ -187,7 +190,7 @@
   <body>
     
     <div class="video">
-      <video controls="controls" autoplay="autoplay" autobuffer="autobuffer">
+      <video controls="controls" autobuffer="autobuffer">
         <source src="light.mp4" />
       </video>
 
@@ -196,11 +199,11 @@
           <div class="progress">
           </div>
         </div>
-        <div class="signals">
+        <!-- <div class="signals">
           <div class="signal signal-comment" data-timecode="10"></div>
           <div class="signal signal-rating" data-timecode="20"></div>
           <div class="signal signal-emotion" data-timecode="327"></div>
-        </div>
+        </div> -->
       </div>
     </div>
     
